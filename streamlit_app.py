@@ -115,29 +115,29 @@ def main():
     if notification:
         st.toast(notification)
 
-    title, actions = st.columns([2.4, 1.5])
-    with title:
-        st.markdown('<div class="workspace-kicker">DOCUMENT WORKSPACE</div>', unsafe_allow_html=True)
-        st.title("Document Q&A")
-        st.caption("Answers with passages you can check.")
-    with actions:
-        new, export, settings = st.columns([1.3, 1, 1])
-        with new:
-            if st.button("New conversation", use_container_width=True):
-                reset_conversation()
-                st.rerun()
-        with export:
-            st.download_button("Export", conversation_export(st.session_state.messages),
-                               "document-conversation.md", "text/markdown", disabled=not st.session_state.messages,
-                               use_container_width=True)
-        with settings:
-            with st.popover("Settings", use_container_width=True):
-                st.write("Workspace settings")
-                st.caption(f"Answer model: {LLM_MODEL}\n\nEmbedding model: {EMBEDDING_MODEL}")
-                st.caption("Configure Azure OpenAI credentials and deployment names in .env or Space Settings.")
-                st.caption("Files persist on this app instance. This is a personal or trusted shared library, with no per-user file separation.")
-                st.caption("Scanned PDFs need OCR before import. Follow-up questions should be self-contained.")
-
+    with st.container(key="workspace_header"):
+        title, actions = st.columns([2.4, 1.5])
+        with title:
+            st.markdown('<div class="workspace-kicker">DOCUMENT WORKSPACE</div>', unsafe_allow_html=True)
+            st.title("Document Q&A")
+            st.caption("Answers with passages you can check.")
+        with actions:
+            new, export, settings = st.columns([1.3, 1, 1])
+            with new:
+                if st.button("New conversation", use_container_width=True):
+                    reset_conversation()
+                    st.rerun()
+            with export:
+                st.download_button("Export", conversation_export(st.session_state.messages),
+                                   "document-conversation.md", "text/markdown", disabled=not st.session_state.messages,
+                                   use_container_width=True)
+            with settings:
+                with st.popover("Settings", use_container_width=True):
+                    st.write("Workspace settings")
+                    st.caption(f"Answer model: {LLM_MODEL}\n\nEmbedding model: {EMBEDDING_MODEL}")
+                    st.caption("Configure Azure OpenAI credentials and deployment names in .env or Space Settings.")
+                    st.caption("Files persist on this app instance. This is a personal or trusted shared library, with no per-user file separation.")
+                    st.caption("Scanned PDFs need OCR before import. Follow-up questions should be self-contained.")
     store = None
     sync_error = None
     if valid:
@@ -147,7 +147,7 @@ def main():
             sync_error = str(error)
 
     with st.sidebar:
-        st.markdown('<div class="workspace-brand">▣ <span>Document</span> library</div>', unsafe_allow_html=True)
+        st.markdown('<div class="workspace-brand"><span class="workspace-mark" aria-hidden="true">▤</span>Document library</div>', unsafe_allow_html=True)
         st.caption("Add files, then choose what to ask about.")
         uploads = st.file_uploader("Add documents", type=["pdf", "txt", "md"], accept_multiple_files=True,
                                    help="PDF, TXT or Markdown. Up to 20 MB per file. Same-name files replace the existing version.")
@@ -202,7 +202,7 @@ def main():
         st.error("A document needs attention before you can ask questions: " + sync_error)
     indexed = list_indexed_documents() if valid else []
     options = {record["source"]: record["file_name"] for record in indexed}
-    with st.container(border=True):
+    with st.container(border=True, key="scope_panel"):
         st.caption("ANSWER FROM")
         scope_mode = st.radio("Search scope", ["Entire library", "Selected documents"], horizontal=True, label_visibility="collapsed")
         chosen = None
@@ -226,12 +226,25 @@ def main():
     with conversation:
         if not st.session_state.messages:
             heading = "Add your first document." if not indexed else "What would you like to know?"
-            st.markdown('<div class="workspace-welcome"><h2>' + heading + '</h2><p>Find a detail, compare documents, or ask for an explanation. References let you check the original text.</p></div>', unsafe_allow_html=True)
-            if indexed:
-                st.caption("Example questions — edit them to fit your documents")
-                for prompt in ["What do the documents say about retrieval?", "What limitations are discussed in the documents?"]:
-                    if st.button(prompt, disabled=store is None or chosen == [], use_container_width=True):
-                        pending = prompt
+            with st.container(key="welcome_panel"):
+                st.markdown(
+                    '<div class="workspace-welcome">'
+                    '<div class="welcome-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">'
+                    '<path d="M5 3h10l4 4v14H5zM15 3v5h4M8 12h8M8 16h5"/></svg></div>'
+                    '<h2>' + heading + '</h2>'
+                    '<p>Your documents, a clearer answer. Ask a question and follow the references back to the original text.</p>'
+                    '<div class="workspace-steps"><span><b>1</b>Add documents</span><span><b>2</b>Ask a question</span><span><b>3</b>Check sources</span></div></div>',
+                    unsafe_allow_html=True,
+                )
+                if indexed:
+                    st.caption("A starting point — adapt these questions to your documents")
+                    prompts = ["What do the documents say about retrieval?", "What limitations are discussed in the documents?"]
+                    cards = st.columns(2)
+                    for card, prompt in zip(cards, prompts):
+                        with card:
+                            if st.button(prompt, disabled=store is None or chosen == [], use_container_width=True):
+                                pending = prompt
+
         for index, message in enumerate(st.session_state.messages):
             with st.chat_message(message["role"]):
                 if message.get("status") == "insufficient_evidence":
@@ -253,7 +266,8 @@ def main():
                             st.rerun()
         if evidence is not None:
             with evidence:
-                render_source_reader()
+                with st.container(key="source_reader"):
+                    render_source_reader()
         # Keep the composer in Streamlit's bottom-pinned area, outside the columns.
     question = st.chat_input("Ask about the documents in scope…", disabled=store is None or not indexed or chosen == [])
     if pending:

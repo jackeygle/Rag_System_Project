@@ -1,32 +1,72 @@
-/* Styling only: inputs and source content remain native accessible widgets. */
-.stApp { background: #f7f8fc; }
-.block-container { max-width: 1450px; padding-top: 2.4rem; padding-bottom: 2rem; }
-[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e4e8f2; }
-[data-testid="stSidebar"] .block-container { padding-top: 1.5rem; }
-h1 { letter-spacing: -.045em; font-weight: 650; font-size: 2.3rem !important; }
+/* Presentation layer; interactive controls and document content stay native. */
+:root { --ink: #182440; --muted: #71809b; --line: #e4e9f3; --accent: #5962df; }
+.stApp {
+ background: radial-gradient(ellipse at 92% 0%, #eae8ff85 0, transparent 38%),
+             radial-gradient(ellipse at 30% 0%, #e8f3ff80 0, transparent 32%), #f6f8fc;
+ color: var(--ink);
+}
+[data-testid="stHeader"] { background: transparent; }
+.block-container { max-width: 1370px; padding: 2.6rem 3rem 2rem; }
+h1 { letter-spacing: -.055em; font-weight: 700; font-size: 2.35rem !important; padding-top: .25rem !important; }
 h2 { letter-spacing: -.025em; font-size: 1.25rem !important; }
-h3 { font-size: 1rem !important; letter-spacing: -.01em; }
-[data-testid="stCaptionContainer"] { color: #69738c; }
-[data-testid="stChatMessage"] { background: #ffffff; border: 1px solid #e5e9f2; border-radius: 14px; margin-bottom: .85rem; padding: 1.15rem; }
-[data-testid="stChatMessage"] p { line-height: 1.75; }
-[data-testid="stExpander"] { background: #ffffff; border-color: #e5e9f2; border-radius: 10px; }
-[data-testid="stChatInput"] { border-radius: 12px; border-color: #d9dfed; box-shadow: 0 6px 20px #20283f08; }
-[data-testid="stFileUploader"] { border-radius: 12px; }
-[data-testid="stButton"] button, [data-testid="stDownloadButton"] button { border-radius: 8px; }
-.workspace-brand { font-size: 1.2rem; font-weight: 700; color: #273352; letter-spacing: -.03em; margin-bottom: .3rem; }
-.workspace-brand span { color: #5264d9; }
-.workspace-kicker { font-size: .7rem; text-transform: uppercase; letter-spacing: .15em; color: #7a86a1; margin-bottom: .3rem; }
-.workspace-welcome { padding: 1.4rem 0 .5rem; }
-.workspace-welcome h2 { font-size: 1.65rem !important; }
-.workspace-welcome p { color: #6b758d; line-height: 1.8; max-width: 520px; }
+h3 { letter-spacing: -.015em; font-size: 1rem !important; }
+[data-testid="stCaptionContainer"] { color: var(--muted); line-height: 1.6; }
+[data-testid="stSidebar"] { background: #fff; border-right: 1px solid var(--line); }
+[data-testid="stSidebar"] .block-container { padding: 1.6rem 1.1rem; }
+.workspace-brand { display: flex; align-items: center; gap: .7rem; margin: .25rem 0 .6rem; font-size: 1.12rem; font-weight: 700; letter-spacing: -.025em; color: var(--ink); }
+.workspace-mark { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 11px; background: linear-gradient(135deg, #5368e5, #8a62d9); color: #fff; box-shadow: 0 4px 12px #5962df25; font-size: 1.4rem; }
+.workspace-kicker { color: #5962bd; font-size: .67rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; margin-bottom: .2rem; }
+.st-key-workspace_header { margin-bottom: .8rem; }
+.st-key-workspace_header [data-testid="stButton"] button,
+.st-key-workspace_header [data-testid="stDownloadButton"] button,
+.st-key-workspace_header [data-testid="stPopover"] button { min-height: 42px; font-size: .82rem; }
+[data-testid="stButton"] button, [data-testid="stDownloadButton"] button, [data-testid="stPopover"] button {
+ border-radius: 10px; border-color: #dce2ee; font-weight: 500; transition: border-color .15s, box-shadow .15s;
+}
+[data-testid="stButton"] button:hover, [data-testid="stDownloadButton"] button:hover { border-color: #8c93e5; box-shadow: 0 3px 10px #5962df0b; }
+[data-testid="stButton"] button[kind="primary"] { background: linear-gradient(110deg, #5866db, #7560cf); border-color: transparent; color: white; }
+button:focus-visible { outline: 3px solid #8996f6 !important; outline-offset: 3px; }
+[data-testid="stTextInput"] input, [data-testid="stMultiSelect"] { border-radius: 9px; }
+[data-testid="stFileUploaderDropzone"] { background: #f8f9ff; border: 1px dashed #cbd3e8; border-radius: 12px; padding: 1rem .8rem; }
+[data-testid="stFileUploaderDropzone"] small { color: var(--muted); }
+[data-testid="stExpander"] { border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+[data-testid="stSidebar"] [data-testid="stExpander"] { margin-bottom: .25rem; }
+[data-testid="stSidebar"] [data-testid="stExpander"] summary p { font-size: .82rem; overflow-wrap: anywhere; }
+[data-testid="stSidebar"] hr { border-color: #edf0f6; }
+.st-key-scope_panel { background: #ffffffb8; border-radius: 15px; }
+.st-key-scope_panel [data-testid="stVerticalBlockBorderWrapper"] { border-color: var(--line); border-radius: 15px; }
+.st-key-scope_panel [data-testid="stRadio"] p { font-size: .87rem; }
+.st-key-welcome_panel { padding: 1rem 0; }
+.workspace-welcome { text-align: center; padding: 2rem 1rem 1.2rem; max-width: 660px; margin: 0 auto; }
+.welcome-symbol { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 20px; color: #6264d5; background: linear-gradient(140deg, #ecf1ff, #f2eaff); border: 1px solid #e0e4fb; margin-bottom: 1.2rem; }
+.welcome-symbol svg { width: 30px; height: 30px; }
+.workspace-welcome h2 { font-size: 1.9rem !important; letter-spacing: -.045em; color: var(--ink); margin-bottom: .6rem; }
+.workspace-welcome p { color: var(--muted); font-size: .95rem; line-height: 1.8; margin: 0 auto; max-width: 460px; }
+.workspace-steps { display: flex; justify-content: center; gap: 1.5rem; margin-top: 1.5rem; color: #71809b; font-size: .75rem; }
+.workspace-steps span { display: inline-flex; gap: .4rem; align-items: center; }
+.workspace-steps b { display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; background: #e9edfb; color: #5c69ba; border-radius: 50%; font-size: .65rem; }
+.st-key-welcome_panel [data-testid="stButton"] button { background: white; text-align: left; min-height: 64px; padding: .8rem 1rem; border: 1px solid var(--line); box-shadow: 0 3px 12px #18244003; }
+[data-testid="stChatMessage"] { max-width: 960px; background: #fff; border: 1px solid var(--line); border-radius: 17px; padding: 1.35rem; margin-bottom: 1rem; box-shadow: 0 4px 18px #18244003; }
+[data-testid="stChatMessage"] p { line-height: 1.8; font-size: .94rem; }
+[data-testid="stChatMessage"] li { line-height: 1.75; }
+[data-testid="stChatMessage"] blockquote { border-left: 3px solid #a5acec; color: #526078; }
+[data-testid="stChatMessage"] pre { border-radius: 10px; }
+[class*="st-key-cite_"] button { background: #f3f5ff; border-color: #e0e5fa; color: #4e5bb8; border-radius: 8px; text-align: left; font-size: .8rem; }
+.st-key-source_reader { padding: 1rem; background: #fff; border: 1px solid var(--line); border-radius: 17px; }
+.st-key-source_reader [data-testid="stText"] { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; font-size: .88rem; }
+[data-testid="stBottom"] > div { background: transparent; }
+[data-testid="stChatInput"] { border: 1px solid #d5ddef; border-radius: 16px; background: #fff; box-shadow: 0 8px 32px #2235650c; }
+[data-testid="stChatInput"]:focus-within { border-color: #8d96e8; box-shadow: 0 0 0 3px #5962df12; }
+[data-testid="stChatInput"] textarea { font-size: .93rem; }
+[data-testid="stAlert"] { border-radius: 12px; }
 @media (max-width: 900px) {
  .block-container { padding: 1.2rem 1rem; }
  h1 { font-size: 1.9rem !important; }
  [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
- [data-testid="stColumn"] { min-width: min(100%, 340px); flex: 1 1 340px; }
+ [data-testid="stColumn"] { min-width: min(100%, 300px); flex: 1 1 300px; }
+ .workspace-welcome { padding: 1.5rem .5rem 1rem; }
+ .workspace-welcome h2 { font-size: 1.55rem !important; }
+ .workspace-steps { gap: .75rem; flex-wrap: wrap; }
+ [data-testid="stChatMessage"] { padding: 1rem; }
 }
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
-/* Citation controls sit beside the answer; the reader opens only on demand. */
-[class*="st-key-cite_"] button { color: #4054b8; background: #f0f3ff; border-color: #dce3ff; text-align: left; }
-[data-testid="stChatMessage"] { max-width: 920px; }
-[data-testid="stStatusWidget"] { border-radius: 10px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
