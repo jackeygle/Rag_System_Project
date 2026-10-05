@@ -39,11 +39,12 @@ The repository includes sample Markdown documents. Delete them through the UI if
 
 ## Workspace interface
 
-- Searchable file library with type, size and indexed status
+- Warm paper palette, editorial serif headings and geometric artwork
+- Searchable file library with type, size and indexed status; file search sits above uploads
 - Actual parsing/indexing stages and completed-file progress after uploads
 - Top toolbar for new conversation, export and settings
 - Clear whole-library / selected-document scope
-- Bottom-pinned question composer
+- Prominent inline question composer beneath the search scope
 - On-demand source reader with passage selection and a close button
 - Distinct evidence-insufficient and operation-failed messages
 

@@ -118,9 +118,9 @@ def main():
     with st.container(key="workspace_header"):
         title, actions = st.columns([2.4, 1.5])
         with title:
-            st.markdown('<div class="workspace-kicker">DOCUMENT WORKSPACE</div>', unsafe_allow_html=True)
+            st.markdown('<div class="workspace-kicker">THE READING ROOM</div>', unsafe_allow_html=True)
             st.title("Document Q&A")
-            st.caption("Answers with passages you can check.")
+            st.caption("A place for your documents, questions, and discoveries.")
         with actions:
             new, export, settings = st.columns([1.3, 1, 1])
             with new:
@@ -148,7 +148,9 @@ def main():
 
     with st.sidebar:
         st.markdown('<div class="workspace-brand"><span class="workspace-mark" aria-hidden="true">▤</span>Document library</div>', unsafe_allow_html=True)
-        st.caption("Add files, then choose what to ask about.")
+        st.caption("A collection of ideas, ready to explore.")
+        files = sorted(path for path in DATA_DIR.rglob("*") if path.is_file() and path.suffix.lower() in {".pdf", ".txt", ".md"})
+        search = st.text_input("Search documents", placeholder="Find a document…", disabled=not files)
         uploads = st.file_uploader("Add documents", type=["pdf", "txt", "md"], accept_multiple_files=True,
                                    help="PDF, TXT or Markdown. Up to 20 MB per file. Same-name files replace the existing version.")
         if st.button("Add to library", type="primary", disabled=not uploads or not valid, use_container_width=True):
@@ -162,8 +164,6 @@ def main():
             except Exception as error:
                 st.error(f"Could not process these files: {error}")
         st.divider()
-        files = sorted(path for path in DATA_DIR.rglob("*") if path.is_file() and path.suffix.lower() in {".pdf", ".txt", ".md"})
-        search = st.text_input("Search documents", placeholder="Find a file…") if files else ""
         records = {item["source"]: item for item in list_indexed_documents()} if valid else {}
         st.caption(f"{len(files)} file{'s' if len(files) != 1 else ''} in your library")
         filtered = [path for path in files if search.casefold() in path.name.casefold()]
@@ -216,6 +216,11 @@ def main():
             count = len(indexed) if chosen is None else 0
             st.caption(f"{count} document{'s' if count != 1 else ''} in scope")
 
+    # A nested chat_input renders inline instead of being pinned to the bottom.
+    with st.container(key="question_panel"):
+        st.markdown('<div class="workspace-kicker">YOUR QUESTION</div>', unsafe_allow_html=True)
+        question = st.chat_input("What would you like to discover in your documents?", disabled=store is None or not indexed or chosen == [])
+
     opened = st.session_state.get("source_reader_open", False)
     if opened:
         conversation, evidence = st.columns([2.1, 1], gap="large")
@@ -225,14 +230,13 @@ def main():
     pending = None
     with conversation:
         if not st.session_state.messages:
-            heading = "Add your first document." if not indexed else "What would you like to know?"
+            heading = "Add your first document." if not indexed else "Every document holds a discovery."
             with st.container(key="welcome_panel"):
                 st.markdown(
                     '<div class="workspace-welcome">'
-                    '<div class="welcome-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">'
-                    '<path d="M5 3h10l4 4v14H5zM15 3v5h4M8 12h8M8 16h5"/></svg></div>'
+                    '<div class="welcome-art" aria-hidden="true"><span></span><i></i><b></b></div>'
                     '<h2>' + heading + '</h2>'
-                    '<p>Your documents, a clearer answer. Ask a question and follow the references back to the original text.</p>'
+                    '<p>Start with the question box above. Explore an idea, connect the details, and return to the original passage whenever you need.</p>'
                     '<div class="workspace-steps"><span><b>1</b>Add documents</span><span><b>2</b>Ask a question</span><span><b>3</b>Check sources</span></div></div>',
                     unsafe_allow_html=True,
                 )
@@ -268,8 +272,6 @@ def main():
             with evidence:
                 with st.container(key="source_reader"):
                     render_source_reader()
-        # Keep the composer in Streamlit's bottom-pinned area, outside the columns.
-    question = st.chat_input("Ask about the documents in scope…", disabled=store is None or not indexed or chosen == [])
     if pending:
         question = pending
     if question:

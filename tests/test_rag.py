@@ -132,6 +132,7 @@ def test_streamlit_starts_without_credentials(monkeypatch):
     app.run(timeout=20)
     assert not app.exception
     assert app.chat_input[0].disabled
+    assert len(app.main.chat_input) == 1  # Composer belongs to the page, not the pinned bottom area.
     assert len(app.warning) == 1
 
 
