@@ -1,0 +1,28 @@
+/* Styling only: inputs and source content remain native accessible widgets. */
+.stApp { background: #f7f8fc; }
+.block-container { max-width: 1450px; padding-top: 2.4rem; padding-bottom: 2rem; }
+[data-testid="stSidebar"] { background: #ffffff; border-right: 1px solid #e4e8f2; }
+[data-testid="stSidebar"] .block-container { padding-top: 1.5rem; }
+h1 { letter-spacing: -.045em; font-weight: 650; font-size: 2.3rem !important; }
+h2 { letter-spacing: -.025em; font-size: 1.25rem !important; }
+h3 { font-size: 1rem !important; letter-spacing: -.01em; }
+[data-testid="stCaptionContainer"] { color: #69738c; }
+[data-testid="stChatMessage"] { background: #ffffff; border: 1px solid #e5e9f2; border-radius: 14px; margin-bottom: .85rem; padding: 1.15rem; }
+[data-testid="stChatMessage"] p { line-height: 1.75; }
+[data-testid="stExpander"] { background: #ffffff; border-color: #e5e9f2; border-radius: 10px; }
+[data-testid="stChatInput"] { border-radius: 12px; border-color: #d9dfed; box-shadow: 0 6px 20px #20283f08; }
+[data-testid="stFileUploader"] { border-radius: 12px; }
+[data-testid="stButton"] button, [data-testid="stDownloadButton"] button { border-radius: 8px; }
+.workspace-brand { font-size: 1.2rem; font-weight: 700; color: #273352; letter-spacing: -.03em; margin-bottom: .3rem; }
+.workspace-brand span { color: #5264d9; }
+.workspace-kicker { font-size: .7rem; text-transform: uppercase; letter-spacing: .15em; color: #7a86a1; margin-bottom: .3rem; }
+.workspace-welcome { padding: 1.4rem 0 .5rem; }
+.workspace-welcome h2 { font-size: 1.65rem !important; }
+.workspace-welcome p { color: #6b758d; line-height: 1.8; max-width: 520px; }
+@media (max-width: 900px) {
+ .block-container { padding: 1.2rem 1rem; }
+ h1 { font-size: 1.9rem !important; }
+ [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
+ [data-testid="stColumn"] { min-width: min(100%, 340px); flex: 1 1 340px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

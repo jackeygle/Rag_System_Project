@@ -180,3 +180,13 @@ def test_streamlit_question_displays_cited_source(library, monkeypatch):
     assert any(item.value == 'The robot is blue.' for item in app.text)
     app.radio[0].set_value('Selected documents').run()
     assert app.chat_input[0].disabled
+    app.radio[0].set_value('Entire library').run()
+    app.chat_input[0].set_value('Tell me about the robot again.').run()
+    assert not app.exception
+    app.button(key='inspect_1').click().run()
+    assert app.session_state['source_answer'] == 1
+    assert any(item.value == 'What colour is the robot?' for item in app.markdown)
+    next(button for button in app.button if button.label == 'New conversation').click().run()
+    assert not app.exception
+    assert app.session_state['messages'] == []
+    assert not app.chat_message

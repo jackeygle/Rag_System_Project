@@ -23,8 +23,9 @@ Files and vectors persist on the app instance. This is a personal app or a trust
 2. Click **Save and index**. An existing file with the same name is replaced. Empty/unreadable uploads are rejected before replacement.
 3. Choose **Entire library** or **Selected documents**.
 4. Ask a self-contained question. Answers use numbered citations such as `[1]`.
-5. Expand a citation to see the exact retrieved passage, source and PDF page number.
-6. To delete, select a file in the sidebar, check the confirmation box, then delete it. Its indexed passages are removed too.
+5. Read the cited passages in the **Source reader** beside the conversation. Choose **Inspect sources** on an earlier answer to switch the reader.
+6. Use **Export conversation** to download a Markdown copy of the answers and supporting passages.
+7. To delete, select a file in the sidebar, check the confirmation box, then delete it. Its indexed passages are removed too.
 
 The repository includes sample Markdown documents. Delete them through the UI if you want only your own files.
 
