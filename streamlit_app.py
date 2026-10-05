@@ -4,7 +4,7 @@ import os
 import tempfile
 import streamlit as st
 from config import DATA_DIR, EMBEDDING_MODEL, LLM_MODEL, validate_api_keys
-from src.vector_store import sync_directory, list_indexed_documents
+from src.vector_store import sync_directory, list_indexed_documents, file_digest
 from src.document_loader import load_single_document
 from src.retriever import create_retriever
 from src.generator import create_rag_chain
@@ -45,6 +45,66 @@ def conversation_export(messages):
     return "\n".join(lines)
 
 
+def reset_conversation():
+    st.session_state.messages = []
+    for key in ("source_answer", "source_id", "source_reader_open"):
+        st.session_state.pop(key, None)
+
+
+def process_library():
+    """Show actual parsing/indexing events; do not invent percentages for provider work."""
+    with st.status("Checking documents…", expanded=True) as status:
+        bar = st.progress(0, text="Files completed")
+        def progress(phase, name, complete, total):
+            label = {"checking": "Checking documents", "parsing": "Extracting text", "indexing": "Building index", "ready": "Ready"}[phase]
+            status.update(label=label + (": " + name if name else ""))
+            bar.progress(complete / total if total else 1.0, text=f"{complete} of {total} files completed")
+        try:
+            store = sync_directory(DATA_DIR, progress=progress)
+        except Exception:
+            status.update(label="Document processing failed", state="error", expanded=True)
+            raise
+        status.update(label="Documents ready to ask", state="complete", expanded=False)
+        return store
+
+
+def render_source_reader():
+    header, close = st.columns([4, 1])
+    with header:
+        st.subheader("Source reader")
+    with close:
+        if st.button("Close", key="close_reader"):
+            st.session_state.source_reader_open = False
+            st.rerun()
+    index = st.session_state.get("source_answer", -1)
+    selected = st.session_state.messages[index] if 0 <= index < len(st.session_state.messages) else {}
+    sources = selected.get("sources", [])
+    current = st.session_state.get("source_id")
+    if not sources:
+        st.info("This answer has no cited passages.")
+        return
+    ids = [source["id"] for source in sources]
+    if current not in ids:
+        current = ids[0]
+    if len(sources) > 1:
+        current = st.selectbox("Passage", ids, index=ids.index(current),
+                               format_func=lambda n: next(f"[{n}] {s['file_name']}" for s in sources if s["id"] == n),
+                               key=f"source_select_{index}_{current}")
+    source = next(item for item in sources if item["id"] == current)
+    st.caption("QUESTION")
+    if index > 0:
+        st.write(st.session_state.messages[index - 1]["content"])
+    label = f"[{source['id']}] {source['file_name']}"
+    if source["page"] is not None:
+        label += f" · page {source['page']}"
+    with st.expander(label, expanded=True):
+        st.text(source["excerpt"])
+        if source["page_label"] is not None:
+            st.caption("Printed page label: " + str(source["page_label"]))
+        st.caption("Source: " + source["source"])
+    st.caption("These are the exact passages supplied to the answer model. Review them to verify important claims.")
+
+
 def main():
     stylesheet = Path(__file__).parent / "assets" / "workspace.css"
     st.markdown("<style>" + stylesheet.read_text() + "</style>", unsafe_allow_html=True)
@@ -55,67 +115,91 @@ def main():
     if notification:
         st.toast(notification)
 
+    title, actions = st.columns([2.4, 1.5])
+    with title:
+        st.markdown('<div class="workspace-kicker">DOCUMENT WORKSPACE</div>', unsafe_allow_html=True)
+        st.title("Document Q&A")
+        st.caption("Answers with passages you can check.")
+    with actions:
+        new, export, settings = st.columns([1.3, 1, 1])
+        with new:
+            if st.button("New conversation", use_container_width=True):
+                reset_conversation()
+                st.rerun()
+        with export:
+            st.download_button("Export", conversation_export(st.session_state.messages),
+                               "document-conversation.md", "text/markdown", disabled=not st.session_state.messages,
+                               use_container_width=True)
+        with settings:
+            with st.popover("Settings", use_container_width=True):
+                st.write("Workspace settings")
+                st.caption(f"Answer model: {LLM_MODEL}\n\nEmbedding model: {EMBEDDING_MODEL}")
+                st.caption("Configure API keys and model names in .env.")
+                st.caption("Files persist on this app instance. This is a personal or trusted shared library, with no per-user file separation.")
+                st.caption("Scanned PDFs need OCR before import. Follow-up questions should be self-contained.")
+
+    store = None
+    sync_error = None
+    if valid:
+        try:
+            store = sync_directory(DATA_DIR)
+        except Exception as error:
+            sync_error = str(error)
+
     with st.sidebar:
-        st.markdown('<div class="workspace-brand">▣ <span>Document</span> workspace</div>', unsafe_allow_html=True)
-        st.caption("Your files. Answers you can check.")
-        st.divider()
-        st.subheader("Add documents")
-        uploads = st.file_uploader("PDF, TXT or Markdown", type=["pdf", "txt", "md"], accept_multiple_files=True,
-                                   help="Up to 20 MB per file. Same-name files replace the existing version.")
+        st.markdown('<div class="workspace-brand">▣ <span>Document</span> library</div>', unsafe_allow_html=True)
+        st.caption("Add files, then choose what to ask about.")
+        uploads = st.file_uploader("Add documents", type=["pdf", "txt", "md"], accept_multiple_files=True,
+                                   help="PDF, TXT or Markdown. Up to 20 MB per file. Same-name files replace the existing version.")
         if st.button("Add to library", type="primary", disabled=not uploads or not valid, use_container_width=True):
             try:
-                names = [save_upload(upload) for upload in uploads]
-                with st.spinner("Preparing your documents…"):
-                    sync_directory(DATA_DIR)
-                st.session_state.notification = "Added: " + ", ".join(names)
+                names = []
+                for upload in uploads:
+                    names.append(save_upload(upload))
+                process_library()
+                st.session_state.notification = "Ready: " + ", ".join(names)
                 st.rerun()
             except Exception as error:
-                st.error(str(error))
+                st.error(f"Could not process these files: {error}")
+        st.divider()
         files = sorted(path for path in DATA_DIR.rglob("*") if path.is_file() and path.suffix.lower() in {".pdf", ".txt", ".md"})
-        labels = {str(path.resolve()): str(path.relative_to(DATA_DIR)) for path in files}
-        st.subheader("Your library")
-        st.caption(f"{len(files)} file{'s' if len(files) != 1 else ''}")
-        for path in files:
-            st.write("▤ " + str(path.relative_to(DATA_DIR)))
-        if files:
-            with st.expander("Manage files"):
-                selected_delete = st.selectbox("File to remove", list(labels), format_func=labels.get)
-                confirmed = st.checkbox("Delete the file and its indexed passages")
-                if st.button("Delete file", disabled=not confirmed or not valid, use_container_width=True):
+        search = st.text_input("Search documents", placeholder="Find a file…") if files else ""
+        records = {item["source"]: item for item in list_indexed_documents()} if valid else {}
+        st.caption(f"{len(files)} file{'s' if len(files) != 1 else ''} in your library")
+        filtered = [path for path in files if search.casefold() in path.name.casefold()]
+        for position, path in enumerate(filtered):
+            source = str(path.resolve())
+            record = records.get(source, {})
+            ready = bool(record and record.get("file_hash") == file_digest(path))
+            state = "Ready" if ready else "Not indexed"
+            with st.expander(path.name + " · " + state):
+                st.caption(f"{path.suffix[1:].upper()} · {path.stat().st_size / 1024:.1f} KB · {state}")
+                st.caption(str(path.relative_to(DATA_DIR)))
+                if not ready and valid:
+                    if st.button("Process file", key="process_" + source):
+                        try:
+                            process_library()
+                            st.rerun()
+                        except Exception as error:
+                            st.error(str(error))
+                confirm = st.checkbox("Delete this file and its passages", key="confirm_" + source)
+                if st.button("Delete file", key="delete_" + source, disabled=not confirm or not valid):
                     try:
-                        Path(selected_delete).unlink()
+                        path.unlink()
                         sync_directory(DATA_DIR)
-                        st.session_state.notification = "File removed"
+                        st.session_state.notification = "Removed " + path.name
                         st.rerun()
                     except Exception as error:
                         st.error(str(error))
-        else:
-            st.info("Add your first document to get started.")
-        st.divider()
-        if st.button("New conversation", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.pop("source_answer", None)
-            st.rerun()
-        if st.session_state.messages:
-            st.download_button("Export conversation", conversation_export(st.session_state.messages),
-                               "document-conversation.md", "text/markdown", use_container_width=True)
-        with st.expander("About this workspace"):
-            st.caption("Files persist on this app instance. This is a personal or trusted shared library; it does not separate files by user.")
-            st.caption(f"Answer model: {LLM_MODEL}\n\nEmbedding model: {EMBEDDING_MODEL}")
-            st.caption("Scanned PDFs need OCR before import. Follow-up questions should be self-contained.")
+        if not files:
+            st.info("Your library is empty. Add a document to get started.")
+        elif not filtered:
+            st.caption("No files match your search.")
 
-    st.markdown('<div class="workspace-kicker">DOCUMENT INTELLIGENCE</div>', unsafe_allow_html=True)
-    st.title("Find answers in your documents.")
-    st.caption("Ask a question, then follow the citations back to the original text.")
     if not valid:
-        st.warning("Add " + ", ".join(missing) + " to your .env file to connect the workspace.")
-    store = None
-    if valid:
-        try:
-            with st.spinner("Checking your library…"):
-                store = sync_directory(DATA_DIR)
-        except Exception as error:
-            st.error(f"Could not prepare the library: {error}")
+        st.warning("Connect your workspace: add " + ", ".join(missing) + " to .env.")
+    if sync_error:
+        st.error("A document needs attention before you can ask questions: " + sync_error)
     indexed = list_indexed_documents() if valid else []
     options = {record["source"]: record["file_name"] for record in indexed}
     with st.container(border=True):
@@ -126,68 +210,64 @@ def main():
             chosen = st.multiselect("Documents to search", list(options), format_func=options.get, placeholder="Choose documents…")
             if not chosen:
                 st.info("Choose at least one document to enable questions.")
-        count = len(indexed) if chosen is None else len(chosen)
-        st.caption(f"{count} document{'s' if count != 1 else ''} in scope · Answers include source references")
+        if chosen:
+            st.caption("In scope: " + ", ".join(options[source] for source in chosen))
+        else:
+            count = len(indexed) if chosen is None else 0
+            st.caption(f"{count} document{'s' if count != 1 else ''} in scope")
 
-    conversation, evidence = st.columns([2.1, 1], gap="large")
+    opened = st.session_state.get("source_reader_open", False)
+    if opened:
+        conversation, evidence = st.columns([2.1, 1], gap="large")
+    else:
+        conversation = st.container()
+        evidence = None
     pending = None
     with conversation:
-        st.subheader("Conversation")
         if not st.session_state.messages:
-            st.markdown('<div class="workspace-welcome"><h2>What would you like to know?</h2><p>Find a detail, compare what your documents say, or ask for an explanation with supporting passages.</p></div>', unsafe_allow_html=True)
-            st.caption("Example questions — edit them to fit your files")
-            for prompt in ["What do these documents say about retrieval?", "How is reinforcement learning different from supervised learning?", "What limitations are discussed in the documents?"]:
-                if st.button(prompt, disabled=store is None or not indexed or chosen == [], use_container_width=True):
-                    pending = prompt
+            heading = "Add your first document." if not indexed else "What would you like to know?"
+            st.markdown('<div class="workspace-welcome"><h2>' + heading + '</h2><p>Find a detail, compare documents, or ask for an explanation. References let you check the original text.</p></div>', unsafe_allow_html=True)
+            if indexed:
+                st.caption("Example questions — edit them to fit your documents")
+                for prompt in ["What do the documents say about retrieval?", "What limitations are discussed in the documents?"]:
+                    if st.button(prompt, disabled=store is None or chosen == [], use_container_width=True):
+                        pending = prompt
         for index, message in enumerate(st.session_state.messages):
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                if message.get("status") == "insufficient_evidence":
+                    st.warning(message["content"])
+                elif message.get("status") == "error":
+                    st.error(message["content"])
+                else:
+                    st.markdown(message["content"])
                 if message.get("sources"):
-                    st.caption("Sources: " + " · ".join(f"[{source['id']}] {source['file_name']}" for source in message["sources"]))
-                    if st.button("Inspect sources", key=f"inspect_{index}"):
-                        st.session_state.source_answer = index
-                        st.rerun()
-        question = st.chat_input("Ask about the documents in scope…", disabled=store is None or not indexed or chosen == [])
-        if pending:
-            question = pending
-        if question:
-            st.session_state.messages.append({"role": "user", "content": question})
-            try:
-                chain = create_rag_chain(create_retriever(store, sources=chosen))
-                with st.spinner("Finding supporting passages…"):
-                    result = chain.invoke(question)
-                st.session_state.messages.append({"role": "assistant", "content": result["answer"], "sources": result["sources"]})
-                st.session_state.source_answer = len(st.session_state.messages) - 1
-            except Exception as error:
-                st.session_state.messages.append({"role": "assistant", "content": f"Could not complete this question: {error}"})
-                st.session_state.source_answer = len(st.session_state.messages) - 1
-            st.rerun()
-
-    with evidence:
-        st.subheader("Source reader")
-        source_index = st.session_state.get("source_answer", -1)
-        selected = st.session_state.messages[source_index] if 0 <= source_index < len(st.session_state.messages) else {}
-        sources = selected.get("sources", [])
-        if sources:
-            st.caption("Evidence for the selected answer")
-            with st.container(border=True):
-                st.caption("QUESTION")
-                if source_index > 0:
-                    st.write(st.session_state.messages[source_index - 1]["content"])
-            for source in sources:
-                label = f"[{source['id']}] {source['file_name']}"
-                if source["page"] is not None:
-                    label += f" · page {source['page']}"
-                with st.expander(label, expanded=len(sources) == 1):
-                    st.text(source["excerpt"])
-                    st.caption("Source: " + source["source"])
-        else:
-            with st.container(border=True):
-                st.write("▤ Original passages appear here")
-                st.caption("Ask a question to see its references. For an earlier answer, choose Inspect sources.")
-                if selected:
-                    st.caption("This answer has no cited evidence.")
-        st.caption("References identify supplied passages. Review the text to verify important claims.")
+                    st.caption("Open a source passage")
+                    for source in message["sources"]:
+                        label = f"[{source['id']}] {source['file_name']}"
+                        if source["page"] is not None:
+                            label += f" · p. {source['page']}"
+                        if st.button(label, key=f"cite_{index}_{source['id']}"):
+                            st.session_state.source_answer = index
+                            st.session_state.source_id = source["id"]
+                            st.session_state.source_reader_open = True
+                            st.rerun()
+        if evidence is not None:
+            with evidence:
+                render_source_reader()
+        # Keep the composer in Streamlit's bottom-pinned area, outside the columns.
+    question = st.chat_input("Ask about the documents in scope…", disabled=store is None or not indexed or chosen == [])
+    if pending:
+        question = pending
+    if question:
+        st.session_state.messages.append({"role": "user", "content": question})
+        try:
+            chain = create_rag_chain(create_retriever(store, sources=chosen))
+            with st.spinner("Finding supporting passages…"):
+                result = chain.invoke(question)
+            st.session_state.messages.append({"role": "assistant", "content": result["answer"], "sources": result["sources"], "status": result["status"]})
+        except Exception as error:
+            st.session_state.messages.append({"role": "assistant", "content": f"Could not complete this question: {error}", "status": "error"})
+        st.rerun()
 
 
 if __name__ == "__main__":

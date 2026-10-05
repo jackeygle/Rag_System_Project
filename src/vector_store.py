@@ -117,7 +117,7 @@ def file_digest(path):
     return digest.hexdigest()
 
 
-def sync_directory(directory, vector_store=None):
+def sync_directory(directory, vector_store=None, progress=None):
     """Parse/embed new or changed files only; remove entries for deleted local files."""
     from src.document_loader import load_single_document
     from src.text_splitter import split_documents
@@ -127,22 +127,33 @@ def sync_directory(directory, vector_store=None):
     current = {str(path.resolve()) for path in files}
     with _LOCK:
         manifest = _read_manifest()
-        for path in files:
+        total = len(files)
+        if progress:
+            progress("checking", "", 0, total)
+        for position, path in enumerate(files):
             source = str(path.resolve())
             digest = file_digest(path)
             record = manifest.get(source, {})
             if record.get("file_hash") == digest:
                 ids = record.get("ids", [])
                 if ids and len(store.get(ids=ids, include=[])['ids']) == len(ids):
+                    if progress:
+                        progress("ready", path.name, position + 1, total)
                     continue
+            if progress:
+                progress("parsing", path.name, position, total)
             docs = load_single_document(path.resolve())
             if not docs or not any(doc.page_content.strip() for doc in docs):
                 raise ValueError(f"Could not extract text from {path.name}. Check the file; scanned PDFs need OCR.")
             chunks = split_documents(docs)
+            if progress:
+                progress("indexing", path.name, position, total)
             create_vector_store(chunks, vector_store=store)
             manifest = _read_manifest()
             manifest[source]["file_hash"] = digest
             _write_manifest(manifest)
+            if progress:
+                progress("ready", path.name, position + 1, total)
         for source in list(manifest):
             if source.startswith(("http://", "https://")):
                 continue

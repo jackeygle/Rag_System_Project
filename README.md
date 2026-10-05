@@ -23,11 +23,23 @@ Files and vectors persist on the app instance. This is a personal app or a trust
 2. Click **Save and index**. An existing file with the same name is replaced. Empty/unreadable uploads are rejected before replacement.
 3. Choose **Entire library** or **Selected documents**.
 4. Ask a self-contained question. Answers use numbered citations such as `[1]`.
-5. Read the cited passages in the **Source reader** beside the conversation. Choose **Inspect sources** on an earlier answer to switch the reader.
-6. Use **Export conversation** to download a Markdown copy of the answers and supporting passages.
-7. To delete, select a file in the sidebar, check the confirmation box, then delete it. Its indexed passages are removed too.
+5. Click a numbered source button beneath an answer (for example, **[1] notes.pdf**) to open its passage in the **Source reader**. The reader is closed until you choose a citation, and can be closed again. Earlier answers retain their own citations.
+6. Use **Export** to download a Markdown copy of the answers and supporting passages.
+7. To delete, expand its entry in the sidebar, check the confirmation box, then delete it. Its indexed passages are removed too.
 
 The repository includes sample Markdown documents. Delete them through the UI if you want only your own files.
+
+## Workspace interface
+
+- Searchable file library with type, size and indexed status
+- Actual parsing/indexing stages and completed-file progress after uploads
+- Top toolbar for new conversation, export and settings
+- Clear whole-library / selected-document scope
+- Bottom-pinned question composer
+- On-demand source reader with passage selection and a close button
+- Distinct evidence-insufficient and operation-failed messages
+
+On narrow screens, Streamlit provides a collapsible sidebar; the source reader stacks beneath the conversation rather than becoming a custom mobile drawer. Numbered source controls are native buttons below the answer, not clickable links inside the generated Markdown text.
 
 ## Reliability
 

@@ -176,17 +176,34 @@ def test_streamlit_question_displays_cited_source(library, monkeypatch):
     assert not app.exception
     app.chat_input[0].set_value('What colour is the robot?').run(timeout=20)
     assert not app.exception
+    assert 'source_reader_open' not in app.session_state or not app.session_state['source_reader_open']
+    app.button(key='cite_1_1').click().run()
     assert any(exp.label == '[1] robot.txt' for exp in app.expander)
     assert any(item.value == 'The robot is blue.' for item in app.text)
+    app.button(key='close_reader').click().run()
+    assert not app.session_state['source_reader_open']
     app.radio[0].set_value('Selected documents').run()
     assert app.chat_input[0].disabled
     app.radio[0].set_value('Entire library').run()
     app.chat_input[0].set_value('Tell me about the robot again.').run()
     assert not app.exception
-    app.button(key='inspect_1').click().run()
+    app.button(key='cite_1_1').click().run()
     assert app.session_state['source_answer'] == 1
     assert any(item.value == 'What colour is the robot?' for item in app.markdown)
     next(button for button in app.button if button.label == 'New conversation').click().run()
     assert not app.exception
     assert app.session_state['messages'] == []
     assert not app.chat_message
+
+
+def test_indexing_progress_reports_real_file_stages(library):
+    tmp, store, _ = library
+    folder = tmp / 'progress-docs'; folder.mkdir()
+    (folder / 'robot.txt').write_text('The robot is blue.')
+    events = []
+    indexing.sync_directory(folder, vector_store=store, progress=lambda *event: events.append(event))
+    assert [event[0] for event in events] == ['checking', 'parsing', 'indexing', 'ready']
+    assert events[-1][2:] == (1, 1)
+    events.clear()
+    indexing.sync_directory(folder, vector_store=store, progress=lambda *event: events.append(event))
+    assert [event[0] for event in events] == ['checking', 'ready']

@@ -26,3 +26,7 @@ h3 { font-size: 1rem !important; letter-spacing: -.01em; }
  [data-testid="stColumn"] { min-width: min(100%, 340px); flex: 1 1 340px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+/* Citation controls sit beside the answer; the reader opens only on demand. */
+[class*="st-key-cite_"] button { color: #4054b8; background: #f0f3ff; border-color: #dce3ff; text-align: left; }
+[data-testid="stChatMessage"] { max-width: 920px; }
+[data-testid="stStatusWidget"] { border-radius: 10px; }
