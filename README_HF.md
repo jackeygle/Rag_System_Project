@@ -1,28 +1,35 @@
 ---
-title: RAG 文档问答系统
-emoji: 🤖
+title: Document Q&A Workspace
+emoji: 📚
 colorFrom: blue
 colorTo: purple
-sdk: gradio
-sdk_version: 4.44.1
-app_file: app.py
+sdk: docker
+app_port: 7860
 pinned: false
 license: mit
 ---
 
-# RAG 文档问答系统
+# Document Q&A Workspace
 
-基于检索增强生成 (RAG) 的智能文档问答系统。
+Upload PDF, TXT or Markdown documents, ask questions across your library or selected files, and open numbered citations to inspect the original passages.
 
-## 功能
+This Space runs the Streamlit workspace inside Docker, on port 7860.
 
-- 📄 支持 PDF、TXT、Markdown 文档
-- 🔍 智能检索相关内容
-- 🤖 使用 Groq LLM 生成回答
-- 🌐 Web 界面交互
+## Space configuration
 
-## 配置
+Set these in **Settings → Variables and secrets**:
 
-在 Settings > Secrets 中添加：
-- `GROQ_API_KEY`: 你的 Groq API 密钥
-- `GOOGLE_API_KEY`: 你的 Gemini API 密钥（用于 Embeddings）
+- Secret `GOOGLE_API_KEY`: Gemini embeddings key
+- Secret `GROQ_API_KEY`: Groq answer model key
+- Optional variable `EMBEDDING_MODEL`: defaults to `models/gemini-embedding-001`
+- Optional variable `LLM_MODEL`: defaults to `llama-3.3-70b-versatile`
+- Optional variable `MIN_RELEVANCE`: defaults to `0.25`; tune on your document collection
+- Optional variable `RAG_STORAGE_DIR`: a writable durable directory, if storage is attached
+
+Without keys, the UI starts and explains what configuration is missing. Keep keys in Space secrets, never in repository files.
+
+This is a personal or trusted shared workspace. Visitors share its uploaded files and index. Default container storage is ephemeral across Space restarts/rebuilds; attach durable storage and set `RAG_STORAGE_DIR` if files must persist.
+
+Scanned PDFs need OCR before import. References identify retrieved passages, not automatic proof that every claim is supported.
+
+Source: https://github.com/jackeygle/Rag_System_Project

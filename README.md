@@ -82,3 +82,16 @@ Tests use local deterministic embeddings with a real persistent Chroma database 
 ## Current limits
 
 Scanned PDFs need OCR before import. DOCX/XLSX and OCR are not included yet. Conversation history is displayed but not used for query rewriting: ask self-contained follow-up questions. Hybrid retrieval, reranking, evidence entailment checks and an answer-quality benchmark are planned next steps.
+
+## Hugging Face deployment
+
+The target Space is https://huggingface.co/spaces/jackeygleee/jackeygleeeeee. The new interface uses Docker + Streamlit; it does not use the old Gradio entrypoint.
+
+```bash
+pip install huggingface_hub
+hf auth login
+python scripts/deploy_hf.py --dry-run
+python scripts/deploy_hf.py
+```
+
+The deployment script uploads an explicit source allowlist and copies `README_HF.md` as the Space's `README.md`. It never uploads `.env`, local indexes or untracked user documents, and does not delete existing Space files or secrets. Set provider keys in Space Settings. Deployment uploads trigger a separate build; confirm that build before treating the new interface as live.

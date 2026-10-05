@@ -10,8 +10,9 @@ load_dotenv()
 
 # Base paths
 BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data" / "documents"
-DB_DIR = BASE_DIR / "db" / "chroma"
+STORAGE_DIR = Path(os.getenv("RAG_STORAGE_DIR", str(BASE_DIR)))
+DATA_DIR = STORAGE_DIR / "data" / "documents"
+DB_DIR = STORAGE_DIR / "db" / "chroma"
 
 # Ensure directories exist
 DATA_DIR.mkdir(parents=True, exist_ok=True)
