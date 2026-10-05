@@ -128,7 +128,7 @@ def test_blank_query_rejected():
 def test_streamlit_starts_without_credentials(monkeypatch):
     from streamlit.testing.v1 import AppTest
     app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'streamlit_app.py'))
-    monkeypatch.setattr('config.validate_api_keys', lambda: (False, ['GOOGLE_API_KEY', 'GROQ_API_KEY']))
+    monkeypatch.setattr('config.validate_api_keys', lambda: (False, ['AZURE_OPENAI_API_KEY', 'AZURE_OPENAI_ENDPOINT']))
     app.run(timeout=20)
     assert not app.exception
     assert app.chat_input[0].disabled

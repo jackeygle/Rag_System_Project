@@ -5,11 +5,11 @@ import threading
 from collections import defaultdict
 from pathlib import Path
 from langchain_chroma import Chroma
-from config import DB_DIR, COLLECTION_NAME, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP
+from config import DB_DIR, COLLECTION_NAME, EMBEDDING_IDENTITY, CHUNK_SIZE, CHUNK_OVERLAP
 from src.embeddings import get_embeddings
 
 INDEX_VERSION = 2
-SIGNATURE = hashlib.sha256(json.dumps([INDEX_VERSION, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP]).encode()).hexdigest()[:12]
+SIGNATURE = hashlib.sha256(json.dumps([INDEX_VERSION, EMBEDDING_IDENTITY, CHUNK_SIZE, CHUNK_OVERLAP]).encode()).hexdigest()[:12]
 ACTIVE_COLLECTION = f"{COLLECTION_NAME}_{SIGNATURE}"
 _LOCK = threading.RLock()
 

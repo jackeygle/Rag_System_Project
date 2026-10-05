@@ -11,11 +11,19 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements_streamlit.txt
 cp .env.example .env
-# Add GOOGLE_API_KEY and GROQ_API_KEY to .env.
+# Configure Azure OpenAI settings in .env (see below).
 streamlit run streamlit_app.py
 ```
 
 Files and vectors persist on the app instance. This is a personal app or a trusted shared library, not an authenticated multi-user service; sessions share the same files and index. Persistence requires a durable disk on hosted services.
+
+## Azure OpenAI configuration
+
+Set `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` (the HTTPS resource root), `AZURE_OPENAI_CHAT_DEPLOYMENT` and `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` in `.env`. Both deployments must exist in the same Azure resource. The chat deployment serves your GPT model; the embedding deployment must serve an embedding model, such as `text-embedding-3-small`. Set `EMBEDDING_MODEL` to the actual embedding model behind that deployment.
+
+The versioned Azure API defaults to `AZURE_OPENAI_API_VERSION=2024-10-21`; change it if your deployed model requires a different supported version. Deployment names are user-defined in Azure and may differ from model names. Do not use a ChatGPT website subscription token or an OpenAI direct API key here.
+
+No Groq or Gemini key is required. Existing files are retained; switching to Azure creates a fresh embedding collection on the next synchronization and uses embedding quota for that initial pass. Changing the underlying model within the same deployment name requires also updating `EMBEDDING_MODEL` so the old vectors are not reused.
 
 ## Use
 
@@ -54,7 +62,7 @@ On narrow screens, Streamlit provides a collapsible sidebar; the source reader s
 
 Unchanged files are skipped using full-file SHA-256 hashes. Changed/new files are parsed and only new chunks are embedded; old chunks are retired after replacements have been written. A failed embedding call leaves old vectors available. A failed file may need to be repaired or removed before synchronization completes.
 
-Changing the embedding model, chunk settings or index version creates a separate collection. This requires one initial re-index for the new configuration; old collections remain on disk rather than being silently deleted. The former `text-embedding-004` default has been replaced with configurable `models/gemini-embedding-001`.
+Changing the embedding model, chunk settings or index version creates a separate collection. This requires one initial re-index for the new configuration; old collections remain on disk rather than being silently deleted. Azure OpenAI embeddings use a separate collection from the old Gemini index; changing the resource or embedding deployment also starts a new collection.
 
 For one application process, index mutations are serialized with a lock. Multiple independent workers sharing the same disk are not supported by this implementation.
 
@@ -77,7 +85,7 @@ pip install pytest
 python -m pytest -q tests
 ```
 
-Tests use local deterministic embeddings with a real persistent Chroma database and simulated model outputs. They cover indexing, deletion, failed replacement, retrieval scopes, source mapping, invalid citations and Streamlit startup. Real Gemini/Groq calls need your configured keys and are not part of these tests.
+Tests use local deterministic embeddings with a real persistent Chroma database and simulated model outputs. They cover indexing, deletion, failed replacement, retrieval scopes, source mapping, invalid citations and Streamlit startup. Real Azure OpenAI calls need your configured keys and are not part of these tests.
 
 ## Current limits
 

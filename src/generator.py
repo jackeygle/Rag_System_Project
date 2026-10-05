@@ -2,11 +2,11 @@
 import re
 import time
 from pathlib import Path
-from langchain_groq import ChatGroq
+from langchain_openai import AzureChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
-from config import GROQ_API_KEY, LLM_MODEL
+from config import AZURE_OPENAI_CHAT_DEPLOYMENT, azure_client_settings
 
 NO_EVIDENCE = "I couldn’t find enough evidence in the selected documents to answer this question. Try rephrasing it or adding a relevant document."
 SYSTEM_PROMPT = """You answer questions about a document library.
@@ -20,9 +20,9 @@ Do not claim to have read material beyond the passages. Be concise.
 
 
 def get_llm():
-    if not GROQ_API_KEY:
-        raise ValueError("GROQ_API_KEY is missing. Add it to your .env file.")
-    return ChatGroq(model=LLM_MODEL, api_key=GROQ_API_KEY, temperature=0)
+    # Leave temperature unset: reasoning deployments may not support temperature=0.
+    return AzureChatOpenAI(**azure_client_settings(AZURE_OPENAI_CHAT_DEPLOYMENT), timeout=60)
+
 
 
 def source_record(doc, number):
@@ -102,7 +102,7 @@ def query(chain, question: str, max_retries: int = 3) -> str:
             # Check for non-retryable errors
             if "api_key" in error_str or "authentication" in error_str:
                 raise ValueError(
-                    "❌ API authentication failed. Please check your GROQ_API_KEY."
+                    "❌ API authentication failed. Please check your AZURE_OPENAI_API_KEY and Azure resource configuration."
                 ) from e
             
             if "rate_limit" in error_str or "429" in str(e):

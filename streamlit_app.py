@@ -134,7 +134,7 @@ def main():
             with st.popover("Settings", use_container_width=True):
                 st.write("Workspace settings")
                 st.caption(f"Answer model: {LLM_MODEL}\n\nEmbedding model: {EMBEDDING_MODEL}")
-                st.caption("Configure API keys and model names in .env.")
+                st.caption("Configure Azure OpenAI credentials and deployment names in .env or Space Settings.")
                 st.caption("Files persist on this app instance. This is a personal or trusted shared library, with no per-user file separation.")
                 st.caption("Scanned PDFs need OCR before import. Follow-up questions should be self-contained.")
 

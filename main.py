@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 RAG System - Main Entry Point
-A Retrieval-Augmented Generation system using Groq LLM
+A Retrieval-Augmented Generation system using Azure OpenAI
 """
 import argparse
 import sys
@@ -110,7 +110,7 @@ def interactive_query():
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="RAG System - Retrieval Augmented Generation with Groq",
+        description="RAG System - Retrieval Augmented Generation with Azure OpenAI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

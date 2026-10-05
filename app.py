@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv()
 
-from config import DATA_DIR, GROQ_API_KEY
+from config import DATA_DIR, validate_api_keys
 from src.document_loader import load_all_documents
 from src.text_splitter import split_documents
 from src.vector_store import create_vector_store, sync_directory
@@ -29,18 +29,11 @@ def initialize_rag():
     """Initialize the RAG system on startup."""
     global rag_chain, init_status
     
-    from config import GOOGLE_API_KEY, GROQ_API_KEY
-    
-    if not GOOGLE_API_KEY:
-        init_status = "❌ Missing GOOGLE_API_KEY"
-        print(init_status)
+    valid, missing = validate_api_keys()
+    if not valid:
+        init_status = "Missing configuration: " + ", ".join(missing)
         return False
-    
-    if not GROQ_API_KEY:
-        init_status = "❌ Missing GROQ_API_KEY"
-        print(init_status)
-        return False
-    
+
     print("✅ API Keys configured")
     
     try:
@@ -123,7 +116,7 @@ with gr.Blocks(
             lambda h: respond("How does gradient descent work?", h), [chatbot], [chatbot]
         )
     
-    gr.Markdown("---\n*Powered by LangChain + Groq + ChromaDB*")
+    gr.Markdown("---\n*Powered by LangChain + Azure OpenAI + ChromaDB*")
     
     msg.submit(respond, [msg, chatbot], [chatbot]).then(lambda: "", None, [msg])
     send.click(respond, [msg, chatbot], [chatbot]).then(lambda: "", None, [msg])
