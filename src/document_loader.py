@@ -23,6 +23,7 @@ def generate_doc_id(content: str, source: str) -> str:
 
 def load_single_document(file_path: Path) -> List[Document]:
     """Load a single document based on its file extension."""
+    file_path = file_path.resolve()
     suffix = file_path.suffix.lower()
     
     try:

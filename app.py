@@ -16,7 +16,7 @@ load_dotenv()
 from config import DATA_DIR, GROQ_API_KEY
 from src.document_loader import load_all_documents
 from src.text_splitter import split_documents
-from src.vector_store import create_vector_store
+from src.vector_store import create_vector_store, sync_directory
 from src.retriever import create_retriever
 from src.generator import create_rag_chain, query
 
@@ -44,26 +44,16 @@ def initialize_rag():
     print("✅ API Keys configured")
     
     try:
-        print("📄 Loading documents...")
-        documents = load_all_documents(directory=DATA_DIR)
-        
-        if not documents:
-            init_status = "❌ No documents found"
-            print(init_status)
+        vector_store = sync_directory(DATA_DIR)
+        chunk_count = vector_store._collection.count()
+        if not chunk_count:
+            init_status = "No indexed documents. Add files to data/documents/."
             return False
-        
-        print(f"✅ Loaded {len(documents)} documents")
-        
-        chunks = split_documents(documents)
-        print(f"✅ Split into {len(chunks)} chunks")
-        
-        vector_store = create_vector_store(chunks)
-        print("✅ Vector store created")
-        
+
         retriever = create_retriever(vector_store)
         rag_chain = create_rag_chain(retriever)
         
-        init_status = f"✅ Loaded {len(chunks)} document chunks"
+        init_status = f"✅ Loaded {chunk_count} document chunks"
         print("✅ RAG system initialized successfully!")
         return True
         

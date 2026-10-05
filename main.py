@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import DATA_DIR, DB_DIR
 from src.document_loader import load_all_documents
 from src.text_splitter import split_documents
-from src.vector_store import load_vector_store, create_vector_store
+from src.vector_store import load_vector_store, create_vector_store, sync_directory
 from src.retriever import create_retriever
 from src.generator import create_rag_chain, query
 
@@ -24,8 +24,15 @@ def index_documents(urls: list = None):
     print("📚 RAG System - Document Indexing")
     print("="*50 + "\n")
     
-    # Load documents
-    documents = load_all_documents(directory=DATA_DIR, urls=urls)
+    # Reuse unchanged files; web pages are explicitly refreshed when requested.
+    store = sync_directory(DATA_DIR)
+    if not urls and not store._collection.count():
+        print("No readable documents found. Add PDF, TXT or MD files.")
+        return False
+    if not urls:
+        print("✅ Local document index synchronized.")
+        return True
+    documents = load_all_documents(urls=urls)
     
     if not documents:
         print("\n❌ No documents found to index!")

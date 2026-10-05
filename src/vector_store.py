@@ -1,110 +1,152 @@
-"""
-Vector Store Module
-Manages ChromaDB for storing and retrieving document embeddings
-"""
-import shutil
-from typing import List, Optional
+"""Persistent, incremental Chroma indexing. Existing vectors are never deleted on startup."""
+import hashlib
+import json
+import threading
+from collections import defaultdict
 from pathlib import Path
-from langchain_core.documents import Document
 from langchain_chroma import Chroma
-
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import DB_DIR, COLLECTION_NAME
+from config import DB_DIR, COLLECTION_NAME, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP
 from src.embeddings import get_embeddings
 
+INDEX_VERSION = 2
+SIGNATURE = hashlib.sha256(json.dumps([INDEX_VERSION, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP]).encode()).hexdigest()[:12]
+ACTIVE_COLLECTION = f"{COLLECTION_NAME}_{SIGNATURE}"
+_LOCK = threading.RLock()
 
-def clear_vector_store() -> bool:
-    """Clear the existing vector store to prevent duplicates on re-indexing.
-    
-    Returns:
-        bool: True if cleared successfully, False otherwise
+
+def _manifest_path():
+    return DB_DIR / f"{ACTIVE_COLLECTION}.json"
+
+
+def _read_manifest():
+    path = _manifest_path()
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
+def _write_manifest(manifest):
+    path = _manifest_path()
+    temp = path.with_suffix(".tmp")
+    temp.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    temp.replace(path)
+
+
+def open_vector_store(embedding=None):
+    return Chroma(collection_name=ACTIVE_COLLECTION,
+                  embedding_function=embedding if embedding is not None else get_embeddings(),
+                  persist_directory=str(DB_DIR), collection_metadata={"hnsw:space": "cosine"})
+
+
+def _chunk_id(doc):
+    data = [doc.metadata.get("source"), doc.metadata.get("page"), doc.metadata.get("start_index"), doc.page_content]
+    return hashlib.sha256(json.dumps(data, ensure_ascii=False).encode()).hexdigest()
+
+
+def create_vector_store(documents, clear_existing=False, vector_store=None):
+    """Upsert only changed sources. Unchanged chunks incur no embedding calls.
+
+    clear_existing is retained for compatibility but refused: use explicit per-source deletion.
     """
-    try:
-        if DB_DIR.exists():
-            shutil.rmtree(DB_DIR)
-            DB_DIR.mkdir(parents=True, exist_ok=True)
-            print("🗑️  Cleared existing vector store")
-            return True
-        return True
-    except Exception as e:
-        print(f"⚠️  Warning: Could not clear vector store: {e}")
-        return False
-
-
-def create_vector_store(documents: List[Document], clear_existing: bool = True) -> Chroma:
-    """Create a new vector store from documents.
-    
-    Args:
-        documents: List of documents to index
-        clear_existing: If True, clear existing data before indexing (prevents duplicates)
-    """
-    if not documents:
-        raise ValueError("No documents provided to create vector store")
-    
-    # Clear existing to prevent duplicates
     if clear_existing:
-        clear_vector_store()
-    
-    print(f"🔄 Creating vector store with {len(documents)} chunks...")
-    
-    embeddings = get_embeddings()
-    
-    vector_store = Chroma.from_documents(
-        documents=documents,
-        embedding=embeddings,
-        collection_name=COLLECTION_NAME,
-        persist_directory=str(DB_DIR),
-    )
-    
-    print(f"✅ Vector store created and saved to {DB_DIR}")
-    return vector_store
+        raise ValueError("Destructive rebuild disabled; delete individual documents explicitly")
+    if not documents:
+        raise ValueError("No documents provided")
+    store = vector_store if vector_store is not None else open_vector_store()
+    grouped = defaultdict(list)
+    for doc in documents:
+        if doc.page_content.strip():
+            grouped[doc.metadata["source"]].append(doc)
+    if not grouped:
+        raise ValueError("No extractable text. Scanned PDFs need OCR before indexing.")
+    with _LOCK:
+        manifest = _read_manifest()
+        for source, chunks in grouped.items():
+            # Collapse identical chunks, preserving page/offset distinctions.
+            unique = {_chunk_id(doc): doc for doc in chunks}
+            ids = list(unique)
+            old = manifest.get(source, {})
+            existing = set(store.get(ids=ids, include=[])['ids'])
+            missing = [chunk_id for chunk_id in ids if chunk_id not in existing]
+            for offset in range(0, len(missing), 50):
+                batch = missing[offset:offset + 50]
+                store.add_documents([unique[chunk_id] for chunk_id in batch], ids=batch)
+            # Only retire old vectors after all replacement vectors have been written.
+            source_ids = store.get(where={"source": source}, include=[])["ids"]
+            stale = list(set(source_ids) - set(ids))
+            if stale:
+                store.delete(ids=stale)
+            manifest[source] = {"ids": ids, "file_name": chunks[0].metadata.get("file_name", Path(source).name)}
+        _write_manifest(manifest)
+    return store
 
 
-def load_vector_store() -> Optional[Chroma]:
-    """Load an existing vector store."""
-    if not DB_DIR.exists() or not any(DB_DIR.iterdir()):
-        print("⚠️  No existing vector store found")
-        return None
-    
-    print("📂 Loading existing vector store...")
-    
-    embeddings = get_embeddings()
-    
-    vector_store = Chroma(
-        collection_name=COLLECTION_NAME,
-        embedding_function=embeddings,
-        persist_directory=str(DB_DIR),
-    )
-    
-    # Check if collection has documents
-    try:
-        collection = vector_store._collection
-        count = collection.count()
-        
-        if count == 0:
-            print("⚠️  Vector store is empty")
-            return None
-        
-        print(f"✅ Loaded vector store with {count} chunks")
-        return vector_store
-    except Exception as e:
-        print(f"⚠️  Error accessing vector store: {e}")
-        return None
+def load_vector_store():
+    store = open_vector_store()
+    return store if store._collection.count() else None
 
 
-def get_or_create_vector_store(documents: Optional[List[Document]] = None) -> Chroma:
-    """Get existing vector store or create new one if documents provided."""
-    existing_store = load_vector_store()
-    
-    if existing_store is not None:
-        return existing_store
-    
-    if documents is None:
-        raise ValueError(
-            "No existing vector store found and no documents provided.\n"
-            "Please add documents to the data/documents/ directory and run with --index flag."
-        )
-    
-    return create_vector_store(documents)
+def get_or_create_vector_store(documents=None):
+    if documents:
+        return create_vector_store(documents)
+    store = load_vector_store()
+    if store is None:
+        raise ValueError("No indexed documents. Add files and run --index.")
+    return store
 
+
+def list_indexed_documents():
+    with _LOCK:
+        return [{"source": source, **record} for source, record in _read_manifest().items()]
+
+
+def delete_indexed_document(source, vector_store=None):
+    store = vector_store if vector_store is not None else open_vector_store()
+    with _LOCK:
+        manifest = _read_manifest()
+        record = manifest.get(source)
+        if record:
+            store.delete(where={"source": source})
+            del manifest[source]
+            _write_manifest(manifest)
+
+
+def file_digest(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def sync_directory(directory, vector_store=None):
+    """Parse/embed new or changed files only; remove entries for deleted local files."""
+    from src.document_loader import load_single_document
+    from src.text_splitter import split_documents
+    store = vector_store if vector_store is not None else open_vector_store()
+    directory = Path(directory).resolve()
+    files = sorted(path for path in directory.rglob("*") if path.is_file() and path.suffix.lower() in {".pdf", ".txt", ".md"})
+    current = {str(path.resolve()) for path in files}
+    with _LOCK:
+        manifest = _read_manifest()
+        for path in files:
+            source = str(path.resolve())
+            digest = file_digest(path)
+            record = manifest.get(source, {})
+            if record.get("file_hash") == digest:
+                ids = record.get("ids", [])
+                if ids and len(store.get(ids=ids, include=[])['ids']) == len(ids):
+                    continue
+            docs = load_single_document(path.resolve())
+            if not docs or not any(doc.page_content.strip() for doc in docs):
+                raise ValueError(f"Could not extract text from {path.name}. Check the file; scanned PDFs need OCR.")
+            chunks = split_documents(docs)
+            create_vector_store(chunks, vector_store=store)
+            manifest = _read_manifest()
+            manifest[source]["file_hash"] = digest
+            _write_manifest(manifest)
+        for source in list(manifest):
+            if source.startswith(("http://", "https://")):
+                continue
+            path = Path(source).resolve()
+            if path.is_relative_to(directory) and source not in current:
+                delete_indexed_document(source, vector_store=store)
+    return store

@@ -1,24 +1,2 @@
-# Streamlit RAG System Requirements
-
-# Core Framework
-langchain==0.3.7
-langchain-google-genai==2.0.4
-langchain-community==0.3.7
-langchain-groq==0.2.1
-langchain-chroma==0.1.4
-
-# Vector Store
-chromadb==0.5.15
-
-# Document Processing
-pypdf>=4.0.0
-
-# Embeddings
-sentence-transformers>=3.0.0
-
-# Web Interface
-streamlit>=1.29.0
-
-# Environment
-python-dotenv>=1.0.0
-tqdm>=4.66.0
+-r requirements.txt
+streamlit==1.65.0
